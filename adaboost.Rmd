@@ -1,0 +1,257 @@
+---
+title: "Data622_HWk1"
+author: "Alexis Mekueko"
+date: "3/23/2022"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+
+
+
+```{r load-packages, results='hide',warning=FALSE, message=FALSE, echo=FALSE}
+
+##library(tidyverse) #loading all library needed for this assignment
+
+
+library(knitr)
+library(dplyr)
+library(tidyr)
+
+library(stats)
+library(statsr)
+library(GGally)
+library(pdftools)
+library(correlation)
+library(naniar)
+
+library(urca)
+library(tsibble)
+library(tseries)
+library(forecast)
+library(caret)
+set.seed(34332)
+library(plyr)
+library(arules)
+library(arulesViz)
+library(report)
+library(cluster) # to perform different types of hierarchical clustering
+# package functions used: daisy(), diana(), clusplot()
+#install.packages("visdat")
+library(visdat)
+library(plotly)
+library(reshape2)
+library(mlbench)
+library(corrplot)
+library(pROC)
+library(prodlim)
+
+library(adabag)
+library(caret)
+
+```
+
+
+
+Github Link: https://github.com/asmozo24/DATA606_Final_Project
+
+Web link: https://rpubs.com/amekueko/697306
+
+
+#  Classification with the Adabag Boosting in R 
+
+Article source: https://www.datatechnotes.com/2018/03/classification-with-adaboost-model-in-r.html
+
+We are going to use the iris 
+
+```{r, echo=FALSE}
+
+data("iris")
+
+# load the text file which has the description of all the variable.
+# variable_details <- read.delim("https://raw.githubusercontent.com/asmozo24/DATA607_Final_Project/main/student.txt", stringsAsFactors=FALSE)
+# student_math <- read.csv("https://raw.githubusercontent.com/asmozo24/DATA607_Final_Project/main/student-math.csv", stringsAsFactors=FALSE)
+# student_portuguese <- read.csv("https://raw.githubusercontent.com/asmozo24/DATA607_Final_Project/main/student-portuguese.csv", stringsAsFactors=FALSE)
+
+# Structure of the data 
+str(iris)
+
+# Looking at the data ...08 records
+iris %>%
+  head(8)%>%
+  kable()
+
+summary(iris)
+
+```
+
+The feature "Species" has a 03 level factors datatype: setosa, versicolor, virginic. We can use this feature for classification. So, when the classifier gets a sepal , it should be able to tell what species it belongs to.
+
+## Missing data
+
+```{r }
+
+library(Amelia)
+sum(is.na(iris))
+missmap(iris,col=c('yellow','black'),y.at=1,y.labels=' ',legend=TRUE)
+
+
+```
+
+
+## Training dataset
+
+The Iris$Species dataset as a target classification data. We will split the dataset into 80% train and 20% test. 
+
+
+```{r }
+
+# ?adabag
+
+indexes=createDataPartition(iris$Species, p=.80, list = F)
+train = iris[indexes, ]
+test = iris[-indexes, ]
+
+
+```
+
+## Modeling-Boosting
+
+The model will use boosting function.  The 'boosting' function applies the AdaBoost.M1 and SAMME algorithms using classification trees.A 'boos' is a bootstrap uses the weights for each observation in an iteration if it is TRUE. Otherwise, each observation is used with its weight. A 'mfinal' is the number of iterations or trees to use.
+
+
+```{r }
+
+model = boosting(Species~., data=train, boos=TRUE, mfinal=50)
+
+#We can check the model properties
+
+print(names(model))
+
+
+print(model$trees[1])
+
+```
+
+## Prediction and Accuracy
+
+```{r }
+
+pred = predict(model, test)
+print(pred$confusion)
+
+print(pred$error)
+
+
+```
+
+The model has a 0 error prediciton. That is anwsome. 
+
+
+Let's see the comparision between test and prediction
+
+```{r }
+
+result = data.frame(test$Species, pred$prob, pred$class)
+print(result)
+
+```
+
+Well done. the model seems to be performing 100% . This is very impressive on 20% test dataset.
+
+Let's try another boos function; 
+
+### Classification with boosting.cv
+
+The boosting.cv function provides cross-validation method.  The training data is divided into multiple subsets to apply boosting and prediction is performed for the entire dataset. To train the model we use entire dataset and get prediction result. Here, v is cross-validation subsets numbers.
+
+```{r }
+
+cvmodel = boosting.cv(Species~., data=iris, boos=TRUE, mfinal=10, v=5)
+
+```
+
+## Prediction and Accuracy
+
+Let's check model accuracy
+
+```{r }
+print(cvmodel[-1])
+
+```
+The cvmodel shows a 5% error in prediction. 
+
+Let's see the model performance
+
+```{r }
+
+results <- data.frame(iris$Species, cvmodel$class)
+
+print("Let's the first 08 rows")
+results %>%
+  head(8)%>%
+  kable()
+
+print("Let's see the last 08 r0ws")
+
+results %>%
+  tail(8)%>%
+  kable()
+
+```
+Despite the cvmodel showing a 5% error in prediction, the overall performance looks really good. I wonder if it has something to do with weight of the data. 150 records is a small dataset.
+
+
+## Model Iris with Decision trees
+
+```{r }
+library(party)
+
+model3 <- ctree(Species ~ ., train)
+plot(model3)
+
+```
+
+
+### Prediction of Decision trees
+
+```{r}
+pred3 = predict(model3, test)
+classifier <- table(test$Species, pred3)
+classifier
+
+```
+
+
+
+### Model Of Decision trees Accuracy
+
+```{r }
+accuracy3 <- sum(diag(classifier))/sum(classifier)
+accuracy3
+
+```
+Wow! Model accurary is perfect.
+
+So, the adaboost and decision tree give the same performance results on the iris dataset. I think maybe trying a large dataset might set the difference. 
+
+<!-- ```{r } -->
+
+<!-- resultss <- data.frame(test$Species, pred3$prob, pred3$class) -->
+
+<!-- print("Let's the first 08 rows") -->
+<!-- resultss %>% -->
+<!--   head(8)%>% -->
+<!--   kable() -->
+
+<!-- ``` -->
+
+
+
+
+
+
+
+
